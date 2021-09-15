@@ -11,7 +11,7 @@ LIBDIR = $(OPENSSL_LIBDIR) \
 	 $(CUDA_LIBDIR) \
 	 $(GPUCRYPTO_LIBDIR)
 
-LIBS =  -lpthread $(CUDA_LIBS) $(OPENSSL_LIB) $(GPYCRYPTO_LIB)
+LIBS =  -lpthread $(GPYCRYPTO_LIB) $(CUDA_LIBS) $(OPENSSL_LIB) -ldl
 
 INC += 	$(GPUCRYPTO_INCDIR)
 
@@ -30,7 +30,7 @@ $(OBJ_DIR):
 	mkdir $(OBJ_DIR)
 
 $(TARGET_DIR)% : $(OBJ_DIR)%.o |$(TARGET_DIR) $(OBJ_DIR) ../lib/libgpucrypto.a $(OBJ_DIR)common.o
-	$(CC) -o $@ $< $(CFLAGS) $(LIBS) $(LIBDIR) $(OBJ_DIR)common.o
+	$(CC) $< $(CFLAGS) $(LIBDIR) $(LIBS) $(OBJ_DIR)common.o $(INC) $(NVINC) -o $@
 
 $(OBJ_DIR)%.o : %.cc
 	$(CC) $(CFLAGS) $(INC) $(NVINC) -c $< -o $@

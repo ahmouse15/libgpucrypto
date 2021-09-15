@@ -73,7 +73,7 @@ void gen_hmac_sha1_data(operation_batch_t *ops,
 }
 
 void hmac_sha1_prepare(operation_batch_t *ops,
-		       hmac_sha1_param_t *param,
+		       hmac_sha1_param *param,
 		       pinned_mem_pool   *pool)
 {
 	assert(ops != NULL);
@@ -141,7 +141,7 @@ void hmac_sha1_prepare(operation_batch_t *ops,
 
 
 void hmac_sha1_post(operation_batch_t *ops,
-		    hmac_sha1_param_t   *param)
+		    hmac_sha1_param   *param)
 {
 	assert(ops != NULL);
 	assert(ops->size() > 0);
@@ -192,7 +192,7 @@ static bool test_correctness_hmac_sha1(unsigned  num_flows, unsigned flow_len)
 	pool->init(104857600);
 
 	operation_batch_t ops;
-	hmac_sha1_param_t param;
+	hmac_sha1_param param;
 
 	gen_hmac_sha1_data(&ops, num_flows, flow_len);
 	hmac_sha1_prepare(&ops, &param, pool);
@@ -227,7 +227,7 @@ static void test_latency_hmac_sha1(unsigned num_flows, unsigned flow_len)
 	pool->init(num_flows * max(flow_len, 512) * 2.2);
 
 	operation_batch_t ops;
-	hmac_sha1_param_t param;
+	hmac_sha1_param param;
 
 	gen_hmac_sha1_data(&ops, num_flows, flow_len);
 	hmac_sha1_prepare(&ops, &param, pool);
@@ -284,7 +284,7 @@ static void test_latency_stream_hmac_sha1(unsigned num_flows,
 	pool->init(num_flows * max(flow_len, 512) * 2 * num_stream);
 
 	operation_batch_t ops[MAX_STREAM + 1];
-	hmac_sha1_param_t param[MAX_STREAM + 1];
+	hmac_sha1_param param[MAX_STREAM + 1];
 
 	//warmup
 	for (unsigned i = 1; i <= num_stream; i++) {

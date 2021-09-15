@@ -16,6 +16,7 @@
 #define MAX_WIN 64
 
 #define MODULI uint32_t
+//#define MODULI uint64_t
 
 typedef struct RNS_CTX_st {
   // Bi in set A
@@ -48,10 +49,10 @@ typedef struct RNS_CTX_st {
   int bs;
 
   // exponent d
-  #define MAX_D_LEN 128 // big enough for 4096 bits
+  #define MAX_D_LEN 64 // big enough for 4096 bits
   int d_num_bits; // #bits
   int d_len; // d array length
-  BN_ULONG d[MAX_D_LEN]; // exponent array
+  unsigned char d[MAX_D_LEN]; // exponent array
 
   // Vars used in CLNW alrorithm
   int CLNW_num; // #windows

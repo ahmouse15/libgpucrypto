@@ -2,6 +2,12 @@ GPUCRYPTO_DIR = ./
 
 include Makefile.in
 
+
+LIBDIR = $(OPENSSL_LIBDIR) \
+	 $(CUDA_LIBDIR) \
+	 $(GPUCRYPTO_LIBDIR)
+
+LIBS =  -lpthread $(CUDA_LIBS) $(OPENSSL_LIB) $(GPYCRYPTO_LIB)
 OBJS_DIR = objs
 TARGET_DIR = lib
 TARGET_FILE = libgpucrypto.a

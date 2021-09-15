@@ -21,7 +21,7 @@ __device__ WORD mp_umul_lo(WORD a, WORD b)
 template<int S>
 __device__ int vote_any(int predicate)
 {
-	return __any(predicate);
+	return __any_sync(__activemask(), predicate);
 }
 
 template<>
@@ -63,11 +63,15 @@ __device__ void mp_montmul_dev(WORD *ret, const WORD *ar, const WORD *br,
 	t[idx + S] = 0;
 	sync_if_needed();
 
-#if MP_USE_64BIT
+//#if MP_USE_64BIT
 #pragma unroll 4
-#else
-#pragma unroll 8
-#endif
+//#else
+//#pragma unroll 8
+//#endif
+//Most GPUs are 64-bit now, so there's no need to keep support for 32bit.
+//If needed, an opposite flag, MP_USE_32BIT could be used to enable 32bit support.
+//For now, its very safe to assume every GPU is 64-bit
+//Fun fact: Most GPUs are actually 32-bit at a hardware level, but developers like us can treat it as 64bit due to abstraction:)
 	/* step 1: calculate t + mn */
 	for (int i = 0; i < S; i++) {
 #if 0
@@ -398,7 +402,7 @@ void mp_modexp_crt(WORD *a,
 {
 	assert((cnt + MP_MSGS_PER_BLOCK - 1) / MP_MSGS_PER_BLOCK <= MP_MAX_NUM_PAIRS);
 
-	cutilSafeCall(cudaMemcpyAsync(a_d, a,
+	checkCudaErrors(cudaMemcpyAsync(a_d, a,
 				sizeof(WORD[2][MAX_S]) * cnt,
 				cudaMemcpyHostToDevice,
 				stream));
@@ -475,7 +479,7 @@ int mp_modexp_crt_sync(WORD *ret, WORD *ret_d, WORD *n_d, WORD *np_d, WORD *r_sq
 		       uint8_t *checkbits)
 {
 	if (block) {
-		cutilSafeCall(cudaStreamSynchronize(stream));
+		checkCudaErrors(cudaStreamSynchronize(stream));
 	} else {
 		cudaError_t ret = cudaStreamQuery(stream);
 		if (ret == cudaErrorNotReady)
@@ -531,12 +535,12 @@ default:
 	}
 #endif
 
-	cutilSafeCall(cudaMemcpyAsync(ret, ret_d,
+	checkCudaErrors(cudaMemcpyAsync(ret, ret_d,
 				sizeof(WORD[2][MAX_S]) * cnt,
 				cudaMemcpyDeviceToHost,
 				stream));
 
-	cutilSafeCall(cudaStreamSynchronize(stream));
+	checkCudaErrors(cudaStreamSynchronize(stream));
 	return 0;
 }
 

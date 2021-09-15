@@ -1,3 +1,5 @@
+All credit goes to Keon Jang, Sangjin Han, Seungyeop Han, Sue Moon, KyoungSoo Park and the Korea Advanced Institute of Science and Technology, who gratefully released this project under the BSD license.
+
 GENERAL
 =======
 libgpucrypto is subset of SSLShader software that implements
@@ -57,7 +59,7 @@ if you're using system default opeenssl development library,
 then you can leave it as blank.
 
 4) build libgpucrypto
- make
+ make -j2
 
 5) try running test code
 

@@ -3,7 +3,7 @@
 #include <sys/time.h>
 
 #include <cuda_runtime.h>
-#include <cutil_inline.h>
+#include <helper_cuda.h> 
 
 #include "mp_modexp.h"
 
@@ -42,7 +42,7 @@ static __device__ void mp_mul_dev(volatile WORD *ret,
 		ADD_CARRY(c[i + idx + 1], t[i + idx], t[i + idx], lo);
 	}
 
-	while (__any(c[idx] != 0 || c[idx + S] != 0)) {
+	while (__any_sync(__activemask(), (c[idx] != 0 || c[idx + S] != 0))) {
 		ADD_CARRY_CLEAR(c[idx + S + 1], t[idx + S], t[idx + S], c[idx + S]);
 		ADD_CARRY_CLEAR(c[idx + 1], t[idx], t[idx], c[idx]);
 	}
@@ -63,7 +63,7 @@ static __device__ int mp_add_dev(volatile WORD *ret,
 	ADD_CARRY(c[idx], ret[idx], x[idx], y[idx]);
 
 	if (idx < S - 1) {
-		while (__any(c[idx] != 0))
+		while (__any_sync(__activemask(), (c[idx] != 0)))
 			ADD_CARRY_CLEAR(c[idx + 1], ret[idx + 1], 
 					ret[idx + 1], c[idx]);
 	}
@@ -83,7 +83,7 @@ static __device__ int mp_add1_dev(volatile WORD *ret,
 	ADD_CARRY(c[idx], ret[idx], x[idx], (idx == 0) ? 1 : 0);
 
 	if (idx < S - 1) {
-		while (__any(c[idx] != 0))
+		while (__any_sync(__activemask(), (c[idx] != 0)))
 			ADD_CARRY_CLEAR(c[idx + 1], ret[idx + 1], 
 					ret[idx + 1], c[idx]);
 	}
@@ -103,7 +103,7 @@ static __device__ int mp_sub_dev(volatile WORD *ret,
 	SUB_BORROW(b[idx], ret[idx], x[idx], y[idx]);
 
 	if (idx < S - 1) {
-		while (__any(b[idx] != 0))
+		while (__any_sync(__activemask(), (b[idx] != 0)))
 			SUB_BORROW_CLEAR(b[idx + 1], ret[idx + 1], 
 					ret[idx + 1], b[idx]);
 	}
@@ -131,7 +131,7 @@ static __device__ void mp_montmul_dev(WORD *ret, const WORD *a, const WORD *b,
 	mp_mul_dev(mn, m, n, S);
 	c = mp_add_dev(u, t + S, mn + S, S);
 
-	if (__any(t[idx] != 0))
+	if (__any_sync(__activemask(), (t[idx] != 0))
 		c |= mp_add1_dev(u, u, S);
 
 	// c may be 0 or 1, but not 2
@@ -187,7 +187,7 @@ static __device__ void mp_montmul_dev(WORD *ret, const WORD *a, const WORD *b,
 
 	/* here all t[0] ~ t[MAX_S - 1] should be zero */
 
-	while (__any(c[idx + S - 1] != 0))
+	while (__any_sync(__activemask(), (c[idx + S - 1] != 0)))
 		ADD_CARRY_CLEAR(c[idx + S], t[idx + S], t[idx + S], c[idx + S - 1]);
 
 	/* step 3: return t or t - n */
@@ -355,21 +355,21 @@ void mp_mul_gpu(WORD *ret, const WORD *x, const WORD *y)
 	WORD *y_d;
 	WORD *ret_d;
 
-	cutilSafeCall(cudaMalloc(&x_d, sizeof(WORD) * MAX_S));
-	cutilSafeCall(cudaMalloc(&y_d, sizeof(WORD) * MAX_S));
-	cutilSafeCall(cudaMalloc(&ret_d, sizeof(WORD) * 2 * MAX_S));
+	checkCudaErrors(cudaMalloc(&x_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&y_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&ret_d, sizeof(WORD) * 2 * MAX_S));
 
-	cutilSafeCall(cudaMemcpy(x_d, x, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
-	cutilSafeCall(cudaMemcpy(y_d, y, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(x_d, x, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(y_d, y, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
 
 	mp_mul_kernel<<<1, MAX_S>>>(MAX_S, ret_d, x_d, y_d);
 	assert(cudaGetLastError() == cudaSuccess);
 
-	cutilSafeCall(cudaMemcpy(ret, ret_d, sizeof(WORD) * 2 * MAX_S, cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaMemcpy(ret, ret_d, sizeof(WORD) * 2 * MAX_S, cudaMemcpyDeviceToHost));
 
-	cutilSafeCall(cudaFree(x_d));
-	cutilSafeCall(cudaFree(y_d));
-	cutilSafeCall(cudaFree(ret_d));
+	checkCudaErrors(cudaFree(x_d));
+	checkCudaErrors(cudaFree(y_d));
+	checkCudaErrors(cudaFree(ret_d));
 }
 
 void mp_add_gpu(WORD *ret, const WORD *x, const WORD *y)
@@ -378,21 +378,21 @@ void mp_add_gpu(WORD *ret, const WORD *x, const WORD *y)
 	WORD *y_d;
 	WORD *ret_d;
 
-	cutilSafeCall(cudaMalloc(&x_d, sizeof(WORD) * MAX_S));
-	cutilSafeCall(cudaMalloc(&y_d, sizeof(WORD) * MAX_S));
-	cutilSafeCall(cudaMalloc(&ret_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&x_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&y_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&ret_d, sizeof(WORD) * MAX_S));
 
-	cutilSafeCall(cudaMemcpy(x_d, x, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
-	cutilSafeCall(cudaMemcpy(y_d, y, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(x_d, x, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(y_d, y, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
 
 	mp_add_kernel<<<1, MAX_S>>>(MAX_S, ret_d, x_d, y_d);
 	assert(cudaGetLastError() == cudaSuccess);
 
-	cutilSafeCall(cudaMemcpy(ret, ret_d, sizeof(WORD) * MAX_S, cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaMemcpy(ret, ret_d, sizeof(WORD) * MAX_S, cudaMemcpyDeviceToHost));
 
-	cutilSafeCall(cudaFree(x_d));
-	cutilSafeCall(cudaFree(y_d));
-	cutilSafeCall(cudaFree(ret_d));
+	checkCudaErrors(cudaFree(x_d));
+	checkCudaErrors(cudaFree(y_d));
+	checkCudaErrors(cudaFree(ret_d));
 }
 
 void mp_add1_gpu(WORD *ret, const WORD *x)
@@ -400,18 +400,18 @@ void mp_add1_gpu(WORD *ret, const WORD *x)
 	WORD *x_d;
 	WORD *ret_d;
 
-	cutilSafeCall(cudaMalloc(&x_d, sizeof(WORD) * MAX_S));
-	cutilSafeCall(cudaMalloc(&ret_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&x_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&ret_d, sizeof(WORD) * MAX_S));
 
-	cutilSafeCall(cudaMemcpy(x_d, x, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(x_d, x, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
 
 	mp_add1_kernel<<<1, MAX_S>>>(MAX_S, ret_d, x_d);
 	assert(cudaGetLastError() == cudaSuccess);
 
-	cutilSafeCall(cudaMemcpy(ret, ret_d, sizeof(WORD) * MAX_S, cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaMemcpy(ret, ret_d, sizeof(WORD) * MAX_S, cudaMemcpyDeviceToHost));
 
-	cutilSafeCall(cudaFree(x_d));
-	cutilSafeCall(cudaFree(ret_d));
+	checkCudaErrors(cudaFree(x_d));
+	checkCudaErrors(cudaFree(ret_d));
 }
 
 void mp_sub_gpu(WORD *ret, const WORD *x, const WORD *y)
@@ -420,21 +420,21 @@ void mp_sub_gpu(WORD *ret, const WORD *x, const WORD *y)
 	WORD *y_d;
 	WORD *ret_d;
 
-	cutilSafeCall(cudaMalloc(&x_d, sizeof(WORD) * MAX_S));
-	cutilSafeCall(cudaMalloc(&y_d, sizeof(WORD) * MAX_S));
-	cutilSafeCall(cudaMalloc(&ret_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&x_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&y_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&ret_d, sizeof(WORD) * MAX_S));
 
-	cutilSafeCall(cudaMemcpy(x_d, x, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
-	cutilSafeCall(cudaMemcpy(y_d, y, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(x_d, x, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(y_d, y, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
 
 	mp_sub_kernel<<<1, MAX_S>>>(MAX_S, ret_d, x_d, y_d);
 	assert(cudaGetLastError() == cudaSuccess);
 
-	cutilSafeCall(cudaMemcpy(ret, ret_d, sizeof(WORD) * MAX_S, cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaMemcpy(ret, ret_d, sizeof(WORD) * MAX_S, cudaMemcpyDeviceToHost));
 
-	cutilSafeCall(cudaFree(x_d));
-	cutilSafeCall(cudaFree(y_d));
-	cutilSafeCall(cudaFree(ret_d));
+	checkCudaErrors(cudaFree(x_d));
+	checkCudaErrors(cudaFree(y_d));
+	checkCudaErrors(cudaFree(ret_d));
 }
 
 void mp_montmul_gpu(WORD *ret, const WORD *a, const WORD *b, 
@@ -446,27 +446,27 @@ void mp_montmul_gpu(WORD *ret, const WORD *a, const WORD *b,
 	WORD *np_d;
 	WORD *ret_d;
 
-	cutilSafeCall(cudaMalloc(&a_d, sizeof(WORD) * MAX_S));
-	cutilSafeCall(cudaMalloc(&b_d, sizeof(WORD) * MAX_S));
-	cutilSafeCall(cudaMalloc(&n_d, sizeof(WORD) * MAX_S));
-	cutilSafeCall(cudaMalloc(&np_d, sizeof(WORD) * MAX_S));
-	cutilSafeCall(cudaMalloc(&ret_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&a_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&b_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&n_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&np_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&ret_d, sizeof(WORD) * MAX_S));
 
-	cutilSafeCall(cudaMemcpy(a_d, a, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
-	cutilSafeCall(cudaMemcpy(b_d, b, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
-	cutilSafeCall(cudaMemcpy(n_d, n, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
-	cutilSafeCall(cudaMemcpy(np_d, np, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(a_d, a, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(b_d, b, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(n_d, n, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(np_d, np, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
 
 	mp_montmul_kernel<<<1, MAX_S>>>(MAX_S, ret_d, a_d, b_d, n_d, np_d);
 	assert(cudaGetLastError() == cudaSuccess);
 
-	cutilSafeCall(cudaMemcpy(ret, ret_d, sizeof(WORD) * MAX_S, cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaMemcpy(ret, ret_d, sizeof(WORD) * MAX_S, cudaMemcpyDeviceToHost));
 
-	cutilSafeCall(cudaFree(a_d));
-	cutilSafeCall(cudaFree(b_d));
-	cutilSafeCall(cudaFree(n_d));
-	cutilSafeCall(cudaFree(np_d));
-	cutilSafeCall(cudaFree(ret_d));
+	checkCudaErrors(cudaFree(a_d));
+	checkCudaErrors(cudaFree(b_d));
+	checkCudaErrors(cudaFree(n_d));
+	checkCudaErrors(cudaFree(np_d));
+	checkCudaErrors(cudaFree(ret_d));
 }
 
 void mp_modexp_gpu(WORD *ret, const WORD *ar, const WORD *e, 
@@ -481,25 +481,25 @@ void mp_modexp_gpu(WORD *ret, const WORD *ar, const WORD *e,
 	WORD *np_d;
 	WORD *ret_d;
 
-	cutilSafeCall(cudaMalloc(&sw_d, sizeof(sw)));
-	cutilSafeCall(cudaMalloc(&ar_d, sizeof(WORD) * MAX_S));
-	cutilSafeCall(cudaMalloc(&n_d, sizeof(WORD) * MAX_S));
-	cutilSafeCall(cudaMalloc(&np_d, sizeof(WORD) * MAX_S));
-	cutilSafeCall(cudaMalloc(&ret_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&sw_d, sizeof(sw)));
+	checkCudaErrors(cudaMalloc(&ar_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&n_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&np_d, sizeof(WORD) * MAX_S));
+	checkCudaErrors(cudaMalloc(&ret_d, sizeof(WORD) * MAX_S));
 
-	cutilSafeCall(cudaMemcpy(sw_d, &sw, sizeof(sw), cudaMemcpyHostToDevice));
-	cutilSafeCall(cudaMemcpy(ar_d, ar, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
-	cutilSafeCall(cudaMemcpy(n_d, n, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
-	cutilSafeCall(cudaMemcpy(np_d, np, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(sw_d, &sw, sizeof(sw), cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(ar_d, ar, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(n_d, n, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(np_d, np, sizeof(WORD) * MAX_S, cudaMemcpyHostToDevice));
 
 	mp_modexp_kernel<<<1, MAX_S>>>(MAX_S, ret_d, ar_d, sw_d, n_d, np_d);
 	assert(cudaGetLastError() == cudaSuccess);
 
-	cutilSafeCall(cudaMemcpy(ret, ret_d, sizeof(WORD) * MAX_S, cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaMemcpy(ret, ret_d, sizeof(WORD) * MAX_S, cudaMemcpyDeviceToHost));
 
-	cutilSafeCall(cudaFree(sw_d));
-	cutilSafeCall(cudaFree(ar_d));
-	cutilSafeCall(cudaFree(n_d));
-	cutilSafeCall(cudaFree(np_d));
-	cutilSafeCall(cudaFree(ret_d));
+	checkCudaErrors(cudaFree(sw_d));
+	checkCudaErrors(cudaFree(ar_d));
+	checkCudaErrors(cudaFree(n_d));
+	checkCudaErrors(cudaFree(np_d));
+	checkCudaErrors(cudaFree(ret_d));
 }
