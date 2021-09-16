@@ -34,5 +34,5 @@ CUDA_LIBS = -lcudart
 #IS_FERMI = $(foreach DEVID, $(CUDA_DEVICE_IDS), $(shell lspci -nn | grep -q $(DEVID) && echo "1"))
 
 #Compute 6.1 works for 10xx series GPU and higher, might implement a detection mechanism later
-NVCFLAGS += -gencode arch=compute_$COMPUTE_CAPABILITY,code=sm_$COMPUTE_CAPABILITY
+NVCFLAGS += -gencode arch=compute_$(COMPUTE_CAPABILITY),code=sm_$(COMPUTE_CAPABILITY)
 

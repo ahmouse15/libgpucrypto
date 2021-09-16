@@ -20,11 +20,6 @@ objs/rsa_cuda.o: rsa_cuda.cu rsa_cuda.h bn_kn.h
 rsa_cuda.h:
 
 bn_kn.h:
-objs/pinned_mem_pool.o: pinned_mem_pool.cc pinned_mem_pool.hh memory_pool.hh
-
-pinned_mem_pool.hh:
-
-memory_pool.hh:
 objs/rsa_context_mp.o: rsa_context_mp.cc rsa_context_mp.hh rsa_context.hh \
  mp_modexp.h device_context.hh pinned_mem_pool.hh memory_pool.hh \
  cuda_mem_pool.hh
@@ -34,16 +29,6 @@ rsa_context_mp.hh:
 rsa_context.hh:
 
 mp_modexp.h:
-
-device_context.hh:
-
-pinned_mem_pool.hh:
-
-memory_pool.hh:
-
-cuda_mem_pool.hh:
-objs/device_context.o: device_context.cc device_context.hh pinned_mem_pool.hh \
- memory_pool.hh cuda_mem_pool.hh
 
 device_context.hh:
 
@@ -72,6 +57,16 @@ device_context.hh:
 pinned_mem_pool.hh:
 
 sha1.hh:
+objs/device_context.o: device_context.cc device_context.hh pinned_mem_pool.hh \
+ memory_pool.hh cuda_mem_pool.hh
+
+device_context.hh:
+
+pinned_mem_pool.hh:
+
+memory_pool.hh:
+
+cuda_mem_pool.hh:
 objs/mp_modexp.o: mp_modexp.cc mp_modexp.h
 
 mp_modexp.h:
@@ -102,5 +97,10 @@ aes_kernel.h:
 objs/cuda_mem_pool.o: cuda_mem_pool.cc cuda_mem_pool.hh memory_pool.hh
 
 cuda_mem_pool.hh:
+
+memory_pool.hh:
+objs/pinned_mem_pool.o: pinned_mem_pool.cc pinned_mem_pool.hh memory_pool.hh
+
+pinned_mem_pool.hh:
 
 memory_pool.hh:
